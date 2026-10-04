@@ -1,0 +1,4 @@
+{
+  "sessionDir": ".pi/session-data",
+  "defaultTools": ["read", "bash", "edit", "write", "grep", "find", "ls"]
+}

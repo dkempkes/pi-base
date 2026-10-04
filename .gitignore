@@ -1,0 +1,6 @@
+/.pi/.tasks-*.tmp
+node_modules/
+/.pi/session-data/
+.env
+.env.*
+!.env.example
