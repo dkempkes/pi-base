@@ -12,8 +12,23 @@ Repository-scoped task board for Planner/Builder handoff.
 
 ## Storage
 
-- Durable board: `<repo>/.pi/tasks.json` (human-reviewable and normally committed)
-- Local coordination: Git metadata directory
+The default durable board is `<repo>/.pi/tasks.json` (human-reviewable and normally committed).
+
+A repository can make PLANKA authoritative with `<repo>/.pi/project-tasks.json`:
+
+```json
+{
+  "provider": "planka",
+  "baseUrl": "https://board.example.org",
+  "projectName": "Example",
+  "boardName": "Central tasks",
+  "apiKeyEnv": "PLANKA_API_KEY"
+}
+```
+
+`apiKeyFile` may replace `apiKeyEnv`; `~` expands to the home directory. Never commit the key. In PLANKA mode `.pi/tasks.json` is not read or written. The board must contain `Te doen`, `Bezig`, `Geblokkeerd`, and `Klaar`; task cards carry a hidden marker. Network and conflict errors fail closed without a local fallback. PLANKA has no server-side conditional card update, so use one technical writer account and resolve reported races from card history.
+
+Local coordination remains in the Git metadata directory:
   - `pi-project-tasks-state.json`
   - `pi-project-tasks.lock`
   - `pi-project-tasks.backup.json`
@@ -22,7 +37,7 @@ Claim ownership, PIDs, host names, session identifiers, backups and locks stay o
 
 ## Commands
 
-- `/tasks` — choose a filter and task, including **Waiting on dependencies**
+- `/tasks` — choose a filter and task with the local provider; list ready tasks with PLANKA
 - `/tasks waiting` — browse todo tasks with unfinished prerequisites (also available as tool list filter `waiting`)
 
 Waiting is a calculated category, not a stored status. Entries show `[waiting on T-0001, ...]` in both the picker and tool lists. Only `done` prerequisites satisfy dependencies; cancelled prerequisites still require resolution. Once all prerequisites are done, an unclaimed todo task appears under Ready automatically. Explicitly blocked tasks remain in Blocked. Selecting a waiting task displays its details without offering to start it.

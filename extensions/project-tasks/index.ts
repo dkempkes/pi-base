@@ -6,6 +6,7 @@ import { Board, Task, canSelect, createPlan, formatTaskLine, readyTasks, stripCo
 import { buildBuilderPrompt, activeTaskContext } from "./prompt.ts";
 import { makeClaim, readBoard, readLocalState, resolveRepository, sameSessionClaim, updateBoard, withLock, writeBoard, writeLocalState, type RepoScope } from "./repository.ts";
 import { filterTasks, selectFilter, selectTask, taskDetails, type Filter } from "./ui.ts";
+import registerPlankaProjectTasks, { loadPlankaConfig } from "./planka.ts";
 
 type WorkMode = "planner" | "builder";
 const ACTIVE_ENTRY = "project-tasks-active";
@@ -83,7 +84,7 @@ function colorizeTaskText(text: string, theme: ExtensionContext["ui"]["theme"]):
 }
 function compactResult(text: string, details: unknown) { return { content: [{ type: "text" as const, text }], details }; }
 
-export default function projectTasksExtension(pi: ExtensionAPI): void {
+function localProjectTasksExtension(pi: ExtensionAPI): void {
   let active: { projectRoot: string; activeTaskId: string } | undefined;
   let watcher: fs.FSWatcher | undefined;
   let currentCtx: ExtensionContext | undefined;
@@ -277,4 +278,14 @@ export default function projectTasksExtension(pi: ExtensionAPI): void {
     } catch { active = undefined; }
   });
   pi.on("context", async (event) => ({ messages: event.messages.filter((m: any) => m.customType !== "project-tasks-active-context") }));
+}
+
+export default function projectTasksExtension(pi: ExtensionAPI): void {
+  const scope = resolveRepository(process.cwd());
+  const planka = loadPlankaConfig(scope.projectRoot);
+  if (planka) {
+    registerPlankaProjectTasks(pi, planka);
+    return;
+  }
+  localProjectTasksExtension(pi);
 }
