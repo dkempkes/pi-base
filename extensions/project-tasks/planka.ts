@@ -324,6 +324,15 @@ export default function registerPlankaProjectTasks(pi: ExtensionAPI, config: Pla
           ? Math.min(...existing.map((item) => taskNumber(item.marker!.id) - (item.marker!.taskIndex ?? 0)))
           : Number(nextId("T", current.board.tasks.map((item) => item.id)).slice(2));
         const lists = requiredLists(current.snapshot);
+        const priorityNames: Record<Priority, [string, string]> = {
+          low: ["Prioriteit: laag", "morning-sky"], normal: ["Prioriteit: normaal", "fresh-salad"],
+          high: ["Prioriteit: hoog", "light-orange"], urgent: ["Prioriteit: dringend", "berry-red"],
+        };
+        const priorityLabels = new Map<Priority, Json>();
+        for (const priority of new Set<Priority>(requested.map((item: any) => item.priority ?? "normal"))) {
+          const [name, color] = priorityNames[priority];
+          priorityLabels.set(priority, await ensureLabel(client, current.snapshot, name, color));
+        }
         const created: Task[] = [];
         const keyToId = new Map<string, string>();
         requested.forEach((input: any, index: number) => { if (input.key) keyToId.set(input.key, `T-${String(taskIdNumber + index).padStart(4, "0")}`); });
@@ -336,7 +345,9 @@ export default function registerPlankaProjectTasks(pi: ExtensionAPI, config: Pla
           }
           const marker: Marker = { id, planId, planTitle: params.title, priority: input.priority ?? "normal", dependencies: (input.dependencies ?? []).map((dep: string) => keyToId.get(dep) ?? dep), relevantFiles: input.relevantFiles ?? [], acceptanceCriteria: input.acceptanceCriteria ?? [], idempotencyKey: params.idempotencyKey, taskKey: input.key, taskIndex: index };
           const list = lists.get("Te doen")!;
-          const result = await client.request("POST", `/api/lists/${list.id}/cards`, { type: "project", position: nextPosition(current.snapshot, list.id) + index * POSITION_STEP, name: `${id} ${stripControls(input.title)}`, description: withMarker(stripControls(input.description ?? ""), marker) });
+          const visibleDescription = [stripControls(input.description ?? ""), `**Plan:** ${stripControls(params.title)}`, `**Prioriteit:** ${marker.priority}`].filter(Boolean).join("\n\n");
+          const result = await client.request("POST", `/api/lists/${list.id}/cards`, { type: "project", position: nextPosition(current.snapshot, list.id) + index * POSITION_STEP, name: `${id} ${stripControls(input.title)}`, description: withMarker(visibleDescription, marker) });
+          await attachLabel(client, current.snapshot, result.item, priorityLabels.get(marker.priority!)!);
           await addChecklist(client, result.item.id, marker.acceptanceCriteria ?? []);
           created.push({ id, planId, title: input.title, description: input.description ?? "", priority: marker.priority!, dependencies: marker.dependencies!, relevantFiles: marker.relevantFiles!, acceptanceCriteria: marker.acceptanceCriteria!, status: "todo", version: 1, createdAt: result.item.createdAt, updatedAt: result.item.updatedAt });
         }
